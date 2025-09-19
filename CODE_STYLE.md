@@ -31,6 +31,23 @@
 - 如需添加工具依赖，请使用指定安装命令，例如：`uv add mypy`、`uv add ruff`。
 - 在 CI 中启用类型检查，阈值可从严格到宽松逐步提升。
 
+- 运行时类型检查约定：在启用了严格静态类型检查的上下文中，不应把运行时的 isinstance 作为常规防御手段。优先使用类型注解与 duck-typing（直接调用属性/方法）；必要时用 try/except 捕获 AttributeError/TypeError 做有限回退并记录异常以保证可观测性。示例（推荐 — 直接调用）：
+```python
+value = payload.text
+```
+示例（推荐 — 有限回退）：
+```python
+try:
+    value = payload.text
+except AttributeError:
+    value = None
+```
+示例（不推荐）：
+```python
+if isinstance(payload, OutputPayload):
+    value = payload.text
+```
+
 4. 异步/同步代码约定与并发模式
 
 - 异步接口（async/await）仅在有明确 IO 并发需求时使用。
