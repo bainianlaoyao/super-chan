@@ -1,181 +1,58 @@
-"""src/ui/io_router.py
+"""superchan.ui.io_router
 
-本模块为所有 UI 共享的 IO 路由中心（低耦合）。提供：
-- 可序列化的 OutputPayload dataclass（text, timestamp, metadata）
-- 可插拔的异步 transport（网络发送占位器）
-- IoRouter：请求发送、注册/注销回调、并发分发输出到所有回调
+模块说明：
+该模块实现一个轻量的 IO 路由中心，作为 UI 层与后端 transport/执行器之间的桥梁。
+核心功能：
+- 将由 UI 产生的 `InputPayload` 通过可配置的异步 `transport` 发送到后端；
+- 将 transport 的响应封装为 `OutputPayload` 并分发给所有已注册的回调（支持同步和异步回调）；
+- 提供注册/注销回调的线程安全操作以及对并发回调的收集与异常记录。
 
-实现原则（简洁、明确、类型注解）：
-- transport 为可注入的 async callable: async def transport(request: dict) -> dict
-- 回调签名可接受异步函数或同步函数：Callable[[OutputPayload], Coroutine[Any, Any, None] 或同步函数]
+设计要点与 API：
+- Transport：类型为 Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
+    - transport 接受序列化后的请求 dict（例如由 `InputPayload.to_dict()` 生成），返回一个 dict 形式的响应。
+- 回调：支持两类回调签名
+    - 异步回调：async def cb(OutputPayload) -> None
+    - 同步回调：def cb(OutputPayload) -> None
+    IoRouter 会自动将同步回调提交到线程池以避免阻塞事件循环。
+
+主要类：
+- IoRouter
+    - send_request(request: InputPayload) -> None: 发送请求并分发返回的 OutputPayload。
+    - register_callback(callback) -> str: 注册回调，返回 callback_id（hex uuid）。
+    - unregister_callback(callback_id: str) -> None: 注销回调。
+
+并发与错误处理：
+- 发起请求后，IoRouter 会将 transport 的返回值转换为 `OutputPayload`，并为每个回调创建任务或将同步调用提交到线程池。
+- 回调执行过程中的异常会被记录（使用模块级 logger），并不会影响其他回调的执行。
+- 内部使用 asyncio.Lock 保护回调注册表以保证并发安全。
+
+示例：
+>>> router = IoRouter()
+>>> cid = router.register_callback(lambda out: print(out.text))
+>>> await router.send_request(InputPayload(type="nl", input="hello"))
+
+注意事项：
+- IoRouter 假定传入的 request 已为 `InputPayload` 实例；send_request 使用 request.to_dict() 进行序列化。
+- 默认 transport 为一个轻量模拟实现（见 `_default_transport`），在生产环境应替换为真实的异步 transport。
+
+导出符号：IoRouter, TransportCallable, AsyncCallback, SyncCallback, CallbackType
 """
 
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import datetime
 import inspect
 import logging
 import uuid
-from dataclasses import dataclass
+
 from collections.abc import Callable, Coroutine
-from typing import Literal, cast, Any
+from typing import cast, Any
+
+from superchan.ui.io_payload import OutputPayload, InputPayload
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass
-class OutputPayload:
-    """
-    可序列化的输出载荷，UI 回调接收该对象。
-
-    字段：
-    - text: 必填，输出文本
-    - timestamp: 可选，datetime 或 None（使用 timezone-aware UTC）
-    - metadata: 可选，额外信息字典
-    """
-    text: str
-    timestamp: datetime.datetime | None = None
-    metadata: dict[str, Any] = dataclasses.field(default_factory=dict)  # type: ignore[assignment]
-
-    def to_dict(self) -> dict[str, Any]:
-        """
-        将 OutputPayload 转成字典以便网络传输/序列化。
-        datetime 使用 ISO 格式字符串表示；若 timestamp 为 None 则返回 None。
-        """
-        return {
-            "text": self.text,
-            "timestamp": self.timestamp.isoformat() if self.timestamp is not None else None,
-            "metadata": dict(self.metadata),
-        }
-
-    @staticmethod
-    def from_dict(data: dict[str, Any]) -> "OutputPayload":
-        """
-        从字典恢复 OutputPayload。接受来自 transport 的响应 dict。
-        - 当 data 中缺少 text 时，会以 str(data) 作为 text 的后备表示。
-        - timestamp 尝试用 ISO 字符串解析；解析失败时记录异常并置为 None（不再做 isinstance 检查）。
-        """
-        text = data.get("text")
-        if text is None:
-            # 将任意响应以字符串形式封装为 text，保证字段满足最小要求
-            text = str(data)
-        raw_ts = data.get("timestamp")
-        timestamp: datetime.datetime | None
-        if raw_ts is None:
-            timestamp = None
-        else:
-            try:
-                # 以 duck-typing 尝试解析 ISO 字符串
-                timestamp = datetime.datetime.fromisoformat(raw_ts)  # type: ignore[arg-type]
-            except Exception as exc:
-                # 解析失败时记录异常并置为 None
-                logger.exception("无法解析 timestamp，置为 None：%s", exc)
-                timestamp = None
-        metadata = dict(data.get("metadata") or {})
-        return OutputPayload(text=text, timestamp=timestamp, metadata=metadata)
-  
-@dataclass
-class InputPayload:
-    """
-    输入载荷，供 IoRouter.send_request 使用。
-
-    新语义：
-    - type: "precedure" 或 "nl"
-    - input: 当 type == "nl" 时为字符串；当 type == "precedure" 时为 dict
-    - timestamp: 可选，datetime 或 None（ISO 格式序列化）
-    - metadata: 可选，额外信息字典
-
-    注意：构造时会验证 type 与 input 的一致性，校验失败将抛出 TypeError。
-    """
-    type: Literal["precedure", "nl"]
-    input: str | dict[str, Any]
-    timestamp: datetime.datetime | None = None
-    metadata: dict[str, Any] = dataclasses.field(default_factory=dict)  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:    
-        if self.type == "nl" and not isinstance(self.input, str):
-            raise TypeError("For InputPayload.type == 'nl', input must be a str")
-        if self.type == "precedure" and not isinstance(self.input, dict):
-            raise TypeError("For InputPayload.type == 'precedure', input must be a dict")
-
-    def to_dict(self) -> dict[str, Any]:
-        """
-        将 InputPayload 序列化为 dict。
-        返回结构：
-        {
-          "type": "nl"|"precedure",
-          "input": "..." or { ... },
-          "timestamp": ISO string or None,
-          "metadata": { ... }
-        }
-        """
-        return {
-            "type": self.type,
-            "input": self.input,
-            "timestamp": self.timestamp.isoformat() if self.timestamp is not None else None,
-            "metadata": dict(self.metadata),
-        }
-
-    @staticmethod
-    def from_dict(data: dict[str, Any]) -> "InputPayload":
-        """
-        从字典恢复 InputPayload，具备向后兼容性：
-        - 若缺少 'type'，视为旧格式，默认 type='nl' 并尝试使用 'text' 或 'backing' 字段作为 input（字符串）。
-        - timestamp 使用 fromisoformat 解析；解析失败时记录异常并置为 None。
-        - 对 input 进行容错修正：当 type=='nl' 且 input 非字符串时，使用 str(input)；当 type=='precedure' 且 input 非 dict 时，使用原始 data（或空 dict）作为 dict 表示。
-        """
-        # 解析 type，兼容老格式（缺失 type 时默认 nl）
-        type_val = data.get("type")
-        if type_val is None:
-            type_val = "nl"
-        # 提取原始 input 字段
-        raw_input = data.get("input")
-        # 兼容老格式：尝试使用 text 或 backing
-        if type_val == "nl" and raw_input is None:
-            raw_input = data.get("text") or data.get("backing")
-        # timestamp 解析
-        raw_ts = data.get("timestamp")
-        timestamp: datetime.datetime | None
-        if raw_ts is None:
-            timestamp = None
-        else:
-            try:
-                timestamp = datetime.datetime.fromisoformat(raw_ts)  # type: ignore[arg-type]
-            except Exception as exc:
-                logger.exception("无法解析输入 timestamp，置为 None：%s", exc)
-                timestamp = None
-        metadata = dict(data.get("metadata") or {})
-
-        # 根据 type 进行类型修正/容错
-        if type_val == "nl":
-            if raw_input is None:
-                input_val = ""
-            elif isinstance(raw_input, str):
-                input_val = raw_input
-            else:
-                # 尝试将非字符串转换为字符串，保证兼容性
-                input_val = str(raw_input)
-        else:  # precedure
-            if isinstance(raw_input, dict):
-                # 将 raw_input 明确构造为 dict[str, Any]（避免 dict[Unknown, Unknown] 警告）。
-                # raw_input 来源于外部动态数据，类型检查器无法推断其键/值类型；为最小化 Pylance 报告，
-                # 显式注解并在必要处使用单个 type: ignore[arg-type] 注释以说明原因。
-                input_dict: dict[str, Any] = dict(raw_input)  # type: ignore[arg-type]
-                input_val = input_dict
-            else:
-                # 使用整个原始 data 作为预置的 dict 表示，或回退为 {}
-                try:
-                    input_dict: dict[str, Any] = dict(data)
-                    input_dict.pop("type", None)
-                    input_val = input_dict
-                except Exception as exc:
-                    logger.exception("无法将原始数据转换为 dict 作为 precedure input：%s", exc)
-                    input_val = {}
-
-        return InputPayload(type=type_val, input=input_val, timestamp=timestamp, metadata=metadata)
-  
  
 # 明确 transport 与回调类型
 # Transport 为 async callable 返回 coroutine that yields dict[str, Any]
