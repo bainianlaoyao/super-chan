@@ -24,8 +24,8 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Vertical
-from textual.widgets import TextArea, RichLog, Header, Footer
+from textual.containers import Container, Vertical, Horizontal
+from textual.widgets import TextArea, RichLog, Header, Footer, Static
 from textual.events import Key
 
 from superchan.ui.base_ui import BaseUI
@@ -34,9 +34,125 @@ from superchan.ui.io_router import IoRouter, OutputPayload, InputPayload
 logger = logging.getLogger(__name__)
 
 
-class DisplayPane(RichLog):
+class SuperChanAsciiPanel(Static):
     """
-    历史消息显示区域。
+    Super Chan ASCII Art 动画面板。
+    
+    显示 Super Chan 的 ASCII art 形象，支持：
+    - 动态 ASCII art 动画
+    - 状态变化（思考、说话、待机等）
+    - 非阻塞的自由面板显示
+    """
+    
+    # Super Chan ASCII Art 帧
+    ASCII_FRAMES = [
+        # 用户选择：兔子宝宝表情（版本 2）
+        """
+(\\_/)
+(o.o)
+ /   \\  """,
+        """
+(\\_/)
+(-_-)
+ /   \\  """,
+        """
+(\\_/)
+(?.?)
+ /   \\  """,
+        """
+(\\_/)
+(^_^)
+ /   \\  """
+    ]
+    
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.current_frame = 0
+        self.animation_task: asyncio.Task[None] | None = None
+        self.state = "normal"  # normal, thinking, speaking
+    
+    def on_mount(self) -> None:
+        """面板挂载时启动动画"""
+        self.update_display()
+        self.start_animation()
+    
+    def update_display(self) -> None:
+        """更新显示内容"""
+        if self.state == "thinking":
+            frame = self.ASCII_FRAMES[2]
+        elif self.state == "speaking":
+            frame = self.ASCII_FRAMES[3]
+        else:
+            frame = self.ASCII_FRAMES[self.current_frame % 2]  # 在帧 0 和 1 之间切换
+        
+        self.update(frame)
+    
+    def start_animation(self) -> None:
+        """启动动画循环"""
+        if self.animation_task is None or self.animation_task.done():
+            self.animation_task = asyncio.create_task(self._animate_ascii())
+    
+    async def _animate_ascii(self) -> None:
+        """ASCII art 动画循环"""
+        try:
+            while True:
+                await asyncio.sleep(2.0)  # 每2秒切换一次
+                if self.state == "normal":
+                    self.current_frame = (self.current_frame + 1) % 2
+                    self.update_display()
+        except asyncio.CancelledError:
+            pass
+    
+    def set_state(self, state: str) -> None:
+        """设置状态：normal, thinking, speaking"""
+        self.state = state
+        self.update_display()
+    
+    def stop_ascii_animation(self) -> None:
+        """停止动画"""
+        if self.animation_task and not self.animation_task.done():
+            self.animation_task.cancel()
+
+
+class DisplayPane(Container):
+    """
+    历史消息显示区域的容器。
+    
+    包含：
+    - 左侧的消息日志区域
+    - 右上角的 ASCII art 面板
+    """
+    
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.message_log: RichLog | None = None
+        self.ascii_panel: SuperChanAsciiPanel | None = None
+    
+    def compose(self) -> ComposeResult:
+        """构建显示面板的内部布局"""
+        with Horizontal():
+            # 左侧：消息日志（占 75% 宽度）
+            self.message_log = MessageLog(id="message-log")
+            yield self.message_log
+            
+            # 右侧：ASCII art 面板（占 25% 宽度）
+            self.ascii_panel = SuperChanAsciiPanel(id="ascii-panel")
+            yield self.ascii_panel
+    
+    def add_message(self, sender: str, text: str, timestamp: datetime.datetime | None = None) -> None:
+        """添加消息到日志"""
+        if self.message_log:
+            self.message_log.add_message(sender, text, timestamp)
+    
+    def set_ascii_state(self, state: str) -> None:
+        """设置 ASCII art 状态"""
+        if self.ascii_panel:
+            self.ascii_panel.set_state(state)
+
+
+class MessageLog(RichLog):
+    """
+    消息日志组件。
     
     负责显示所有历史消息和系统输出，支持：
     - 按时间顺序显示消息（最新在下）
@@ -46,7 +162,7 @@ class DisplayPane(RichLog):
     """
     
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+        super().__init__(wrap=True, **kwargs)
         self.auto_scroll = True
     
     def add_message(self, sender: str, text: str, timestamp: datetime.datetime | None = None) -> None:
@@ -184,12 +300,13 @@ class TerminalUI(App[None]):
         """构建 UI 布局"""
         yield Header(show_clock=True)
         
+        # 主要垂直布局
         with Vertical():
-            # 上方：历史消息显示区域（75% 高度）
+            # 上方：显示区域（包含消息和 ASCII art）- 75% 高度
             self.display_pane = DisplayPane(id="display")
             yield self.display_pane
             
-            # 下方：输入区域（25% 高度）
+            # 下方：输入区域 - 25% 高度
             self.input_pane = InputPane(self, id="input")
             yield self.input_pane
         
@@ -232,6 +349,10 @@ class TerminalUI(App[None]):
                 # 从队列获取输出消息
                 output = await self.queue.get()
                 
+                # 设置 ASCII art 为说话状态
+                if self.display_pane:
+                    self.display_pane.set_ascii_state("speaking")
+                
                 # 显示消息
                 if self.display_pane:
                     self.display_pane.add_message(
@@ -239,6 +360,11 @@ class TerminalUI(App[None]):
                         output.text,
                         output.timestamp
                     )
+                
+                # 延迟一段时间后重置 ASCII art 状态
+                await asyncio.sleep(1.0)
+                if self.display_pane:
+                    self.display_pane.set_ascii_state("normal")
                 
         except asyncio.CancelledError:
             logger.info("消息处理任务被取消")
@@ -257,6 +383,10 @@ class TerminalUI(App[None]):
             if self.display_pane:
                 self.display_pane.add_message("user", text)
             
+            # 设置 ASCII art 为思考状态
+            if self.display_pane:
+                self.display_pane.set_ascii_state("thinking")
+            
             # 构造 InputPayload 并发送
             payload = InputPayload(
                 type="nl",
@@ -270,6 +400,9 @@ class TerminalUI(App[None]):
             logger.exception("发送消息失败: %s", e)
             if self.display_pane:
                 self.display_pane.add_message("system", f"发送失败: {e}")
+            # 重置 ASCII art 状态
+            if self.display_pane:
+                self.display_pane.set_ascii_state("normal")
     
     # 消息处理方法
     async def send_request(self, payload: InputPayload) -> None:
@@ -288,6 +421,10 @@ class TerminalUI(App[None]):
         """退出应用程序"""
         try:
             logger.info("正在退出 Terminal UI...")
+            
+            # 停止 ASCII art 动画（通过 DisplayPane）
+            if self.display_pane and self.display_pane.ascii_panel:
+                self.display_pane.ascii_panel.stop_ascii_animation()
             
             # 取消消息处理任务
             if self._message_task and not self._message_task.done():

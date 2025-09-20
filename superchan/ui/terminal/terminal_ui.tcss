@@ -12,13 +12,37 @@ Vertical {
     height: 100%;
 }
 
-/* 历史消息显示区域 - 占用大部分空间 */
+/* 显示区域容器 - 占用大部分空间 */
 #display {
     height: 75%;
     border: tall $primary;
+    padding: 0;
+    margin: 1;
+}
+
+/* 显示区域内的水平布局 */
+#display Horizontal {
+    height: 100%;
+}
+
+/* 消息日志区域（左侧 75%） */
+#message-log {
+    width: 75%;
+    height: 100%;
     padding: 1;
-    margin: 0 1;
     scrollbar-size-vertical: 1;
+    text-wrap: wrap;
+    overflow: auto auto;
+}
+
+/* ASCII art 面板（右侧 25%） */
+#ascii-panel {
+    width: 25%;
+    height: 100%;
+    border-left: tall $accent;
+    padding: 1;
+    text-align: center;
+    background: $surface-lighten-1;
 }
 
 /* 输入区域 - 占用较小空间 */
