@@ -125,7 +125,7 @@ class DisplayPane(Container):
     
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.message_log: RichLog | None = None
+        self.message_log: MessageLog | None = None
         self.ascii_panel: SuperChanAsciiPanel | None = None
     
     def compose(self) -> ComposeResult:
@@ -162,7 +162,7 @@ class MessageLog(RichLog):
     """
     
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(wrap=True, **kwargs)
+        super().__init__(wrap=True, markup=True, **kwargs)
         self.auto_scroll = True
     
     def add_message(self, sender: str, text: str, timestamp: datetime.datetime | None = None) -> None:
@@ -183,7 +183,12 @@ class MessageLog(RichLog):
         # 根据发送者区分样式
         if sender == "user":
             # 用户消息右对齐，蓝色
-            self.write(f"[blue][right][{time_str}] 你: {text}[/right][/blue]")
+            from rich.text import Text
+            from rich.align import Align
+            
+            user_text = Text(f"[{time_str}] 你: {text}", style="blue")
+            aligned_text = Align.right(user_text)
+            self.write(aligned_text)
         else:
             # 系统消息左对齐，默认颜色
             self.write(f"[{time_str}] 系统: {text}")
