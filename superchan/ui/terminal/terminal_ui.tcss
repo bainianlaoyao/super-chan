@@ -1,0 +1,51 @@
+/* superchan.ui.terminal.terminal_ui CSS 样式
+   为 Terminal UI 提供布局和视觉样式定义 */
+
+/* 全局屏幕样式 */
+Screen {
+    background: $surface;
+    layout: vertical;
+}
+
+/* 垂直容器布局 */
+Vertical {
+    height: 100%;
+}
+
+/* 历史消息显示区域 - 占用大部分空间 */
+#display {
+    height: 75%;
+    border: tall $primary;
+    padding: 1;
+    margin: 0 1;
+    scrollbar-size-vertical: 1;
+}
+
+/* 输入区域 - 占用较小空间 */
+#input {
+    height: 25%;
+    max-height: 10;
+    min-height: 3;
+    border: tall $accent;
+    padding: 1;
+    margin: 0 1 1 1;
+}
+
+/* 输入区域获得焦点时的样式 */
+#input:focus {
+    border: tall $primary;
+}
+
+/* Header 样式 */
+Header {
+    height: 1;
+    background: $primary;
+    color: $text;
+    text-align: center;
+}
+
+/* Footer 样式 */
+Footer {
+    height: 1;
+    background: $surface;
+}
