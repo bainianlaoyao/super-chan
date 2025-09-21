@@ -8,6 +8,27 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Dry-run Z.ai chat script",
+			"type": "shell",
+			"command": "python scripts\\chat_zai_text.py --dry-run",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run test_build_zai_llm once",
+			"type": "shell",
+			"command": "python scripts\\test_build_zai_llm.py --prompt \"Hello from Copilot. Say hi in one short sentence.\" --dry-run-placeholder",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Dry-run test_build_zai_llm",
+			"type": "shell",
+			"command": "python scripts\\test_build_zai_llm.py --prompt \"Hello from Copilot. Say hi in one short sentence.\" --dry-run",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

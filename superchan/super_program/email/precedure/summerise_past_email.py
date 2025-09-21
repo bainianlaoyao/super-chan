@@ -229,7 +229,7 @@ async def _proc_summerise_past_email(params: dict[str, Any], metadata: dict[str,
 		)
 
 	# 4) 逐封原子总结（并行限制）
-	sem = asyncio.Semaphore(1)
+	sem = asyncio.Semaphore(4)
 
 	async def _one(msg: EmailMessage) -> Summary | None:
 		try:
@@ -243,25 +243,43 @@ async def _proc_summerise_past_email(params: dict[str, Any], metadata: dict[str,
 	results = await asyncio.gather(*tasks)
 	summaries: list[Summary] = [s for s in results if s is not None]
 
-	# 5) 生成导读：将所有摘要拼接交给同一 LLM 生成导读（复用 summariser 的 LLM 配置）
+	# 5) 先渲染 Markdown（不含导读），再基于该 Markdown 发起单独的 LLM 请求生成导读，并插入到最前部
+	# 5.1) 汇总 Markdown：按优先级排序渲染（lead 为空）
+	summaries.sort(key=lambda s: (_priority_order(s.priority), s.generated_at))
+	base_markdown = _render_markdown("", summaries)
+
+	# 5.2) 基于已渲染的 Markdown 调用 LLM 生成导读
 	try:
-		# 构建导读提示
-		joined = "\n\n".join(
-			f"- [{s.priority}] {s.title or '(无标题)'}: {s.content}" for s in summaries
-		)
+		# 为避免提示过长，适度裁剪（保留前 6000 字符）
+		md_for_prompt = base_markdown
+		if len(md_for_prompt) > 6000:
+			md_for_prompt = md_for_prompt[:6000] + "\n..."
+
 		lead_prompt = (
-			"请为以下多封邮件的摘要生成一个简短导读，用中文，30-80 字，概括关键信息与优先处理建议。\n\n" + joined
+			"下面是一份按优先级分组的邮件汇总 Markdown。"
+			"请基于其内容生成一个简短导读（中文，30-80 字），"
+			"概括关键信息与优先处理建议。请只返回导读文本，不要包含其他解释。\n\n"
+			"```markdown\n" + md_for_prompt + "\n```"
 		)
-		# 直接使用 summariser 内部 llm
+		# 使用 summariser 的 LLM 配置发起独立请求
 		lead_text = await summariser.llm(lead_prompt, model=summariser.llm_cfg.model)  # type: ignore[arg-type]
 		lead_text = str(lead_text).strip()
 	except Exception as exc:
 		warnings.append(f"导读生成失败: {exc}")
 		lead_text = ""
 
-	# 6) 汇总 Markdown：按优先级排序渲染
-	summaries.sort(key=lambda s: (_priority_order(s.priority), s.generated_at))
-	markdown = _render_markdown(lead_text, summaries)
+	# 5.3) 将导读插入到最终 Markdown 顶部（紧随一级标题后）
+	if lead_text:
+		lead_block = "> 导读：\n" + "\n".join("> " + ln for ln in lead_text.splitlines()) + "\n\n"
+		lines = base_markdown.splitlines(keepends=True)
+		if lines and lines[0].lstrip().startswith("# "):
+			# 在首行标题后插入导读
+			markdown = "".join([lines[0], "\n", lead_block, *lines[1:]])
+		else:
+			# 找不到标题时，直接前置
+			markdown = lead_block + base_markdown
+	else:
+		markdown = base_markdown
 
 	used = time.perf_counter() - start
 	return OutputPayload(

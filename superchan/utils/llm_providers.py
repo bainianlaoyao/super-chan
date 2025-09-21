@@ -51,6 +51,9 @@ def build_zai_llm(cfg: LLMConfig) -> LLMCallable:
     def _sync_infer(prompt: str, model: str) -> str:
         # 简单消息体：直接把 prompt 作为用户消息
         resp = _client.chat.completions.create(
+            thinking={
+                "type": "disabled"
+            }, 
             model=model,
             messages=[{"role": "user", "content": prompt}],
         )
