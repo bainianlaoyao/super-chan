@@ -30,9 +30,40 @@ class AnimeStyleConfig:
 
 
 @dataclass
+class OutlookFetcherConfig:
+    """Outlook 本地客户端抓取器配置。"""
+
+    enabled: bool = False
+    profile_name: str | None = None
+    default_folder: str = "Inbox"
+    unread_only: bool = False
+
+
+@dataclass
+class EmailSummariserConfig:
+    """Email 摘要器配置。
+
+    默认复用全局 LLM 配置；当 use_global_llm=False 时，使用此处 provider/model/base_url/api_key。
+    """
+
+    use_global_llm: bool = True
+    provider: str | None = None
+    model: str | None = None
+    base_url: str | None = None
+    api_key: str | None = None
+
+
+@dataclass
+class EmailConfig:
+    fetcher_outlook: OutlookFetcherConfig = field(default_factory=OutlookFetcherConfig)
+    summariser: EmailSummariserConfig = field(default_factory=EmailSummariserConfig)
+
+
+@dataclass
 class UserConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     anime_style: AnimeStyleConfig = field(default_factory=AnimeStyleConfig)
+    email: EmailConfig = field(default_factory=EmailConfig)
 
 
 def _expand_env(value: Any) -> Any:
@@ -86,6 +117,35 @@ def _to_anime_style_config(section: dict[str, Any] | None, legacy_anime: dict[st
     )
 
 
+def _to_outlook_fetcher_config(section: dict[str, Any] | None) -> OutlookFetcherConfig:
+    sec = _expand_mapping(section or {})
+    return OutlookFetcherConfig(
+        enabled=bool(sec.get("enabled", False)),
+        profile_name=str(sec.get("profile_name") or "") or None,
+        default_folder=str(sec.get("default_folder") or "Inbox") or "Inbox",
+        unread_only=bool(sec.get("unread_only", False)),
+    )
+
+
+def _to_email_summariser_config(section: dict[str, Any] | None) -> EmailSummariserConfig:
+    sec = _expand_mapping(section or {})
+    return EmailSummariserConfig(
+        use_global_llm=bool(sec.get("use_global_llm", True)),
+        provider=str(sec.get("provider") or "") or None,
+        model=str(sec.get("model") or "") or None,
+        base_url=str(sec.get("base_url") or "") or None,
+        api_key=str(sec.get("api_key") or "") or None,
+    )
+
+
+def _to_email_config(section: dict[str, Any] | None) -> EmailConfig:
+    sec: dict[str, Any] = section or {}
+    fetcher_sec = cast(dict[str, Any], sec.get("fetcher") or {})
+    fetcher_outlook = _to_outlook_fetcher_config(cast(dict[str, Any] | None, fetcher_sec.get("outlook")))
+    summariser = _to_email_summariser_config(cast(dict[str, Any] | None, sec.get("summariser")))
+    return EmailConfig(fetcher_outlook=fetcher_outlook, summariser=summariser)
+
+
 def load_user_config(root_dir: str) -> UserConfig:
     """加载用户配置。
 
@@ -110,4 +170,5 @@ def load_user_config(root_dir: str) -> UserConfig:
 
     llm = _to_llm_config(data.get("llm"))
     anime_style = _to_anime_style_config(data.get("anime_style"), data.get("anime"))
-    return UserConfig(llm=llm, anime_style=anime_style)
+    email_cfg = _to_email_config(data.get("email"))
+    return UserConfig(llm=llm, anime_style=anime_style, email=email_cfg)

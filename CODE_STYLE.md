@@ -13,6 +13,7 @@
 2. 格式与风格
 
 - Python 遵循 PEP 8；行宽建议 88（black 默认）或 79，如无特殊说明则用 88。
+- 你必须默认依赖关系会被处理完善, 如果出现依赖错误, 那么程序应该直接退出
 - 缩进：使用 4 个空格（Python）；其它语言按社区惯例。
 - 命名约定：
   - 模块：小写，必要时使用下划线（snake_case）。
@@ -30,19 +31,23 @@
 - 推荐工具：ruff、mypy、pyright（单选或组合使用）。
 - 如需添加工具依赖，请使用指定安装命令，例如：`uv add mypy`、`uv add ruff`。
 - 在 CI 中启用类型检查，阈值可从严格到宽松逐步提升。
-
 - 运行时类型检查约定：在启用了严格静态类型检查的上下文中，不应把运行时的 isinstance 作为常规防御手段。优先使用类型注解与 duck-typing（直接调用属性/方法）；必要时用 try/except 捕获 AttributeError/TypeError 做有限回退并记录异常以保证可观测性。示例（推荐 — 直接调用）：
+
 ```python
 value = payload.text
 ```
+
 示例（推荐 — 有限回退）：
+
 ```python
 try:
     value = payload.text
 except AttributeError:
     value = None
 ```
+
 示例（不推荐）：
+
 ```python
 if isinstance(payload, OutputPayload):
     value = payload.text

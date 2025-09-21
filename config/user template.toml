@@ -13,3 +13,21 @@ provider = "zai"
 [anime_style]
 # 应用层的风格提示词，仅用于 anime 风格化处理器
 system_prompt = "你是一个擅长二次元风格表达的助手，请在保持原意和可读性的前提下进行轻度风格化。"
+
+# Email 模块配置（可选）
+[email]
+
+	[email.fetcher.outlook]
+	# 启用本地 Outlook 抓取器（仅 Windows 且已安装 Outlook）
+	enabled = false
+	profile_name = ""         # 使用默认配置文件可留空
+	default_folder = "Inbox"
+	unread_only = true
+
+	[email.summariser]
+	# 是否复用全局 LLM 配置；若为 false，可在下方单独指定 llm 参数
+	use_global_llm = true
+	provider = ""             # 可留空以使用全局 llm.provider
+	model = ""                # 可留空以使用全局 llm.model
+	base_url = ""
+	api_key = "${ENV:SUPERCHAN_EMAIL_LLM_API_KEY}"
