@@ -40,7 +40,7 @@ class PythonFileCommands(Provider):
                 )
 
 
-class ViewerApp(App):
+class ViewerApp(App[None]):
     """Demonstrate a command source."""
 
     COMMANDS = App.COMMANDS | {PythonFileCommands}  

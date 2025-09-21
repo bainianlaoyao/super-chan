@@ -34,6 +34,8 @@ try:
     from superchan.core import CoreEngine, make_inprocess_transport
     from superchan.anime import LLMAnimePostProcessor, make_anime_transport
     from superchan.core.executors import build_default_programmatic_executor
+    from superchan.utils.config import load_user_config
+    from superchan.utils.llm_providers import build_zai_llm
     logger.info("模块导入成功")
 except ImportError as e:
     logger.error(f"导入失败: {e}")
@@ -46,9 +48,23 @@ def main() -> None:
     try:
         logger.info("正在初始化 Core 引擎与 IoRouter...")
         engine = CoreEngine(build_default_programmatic_executor())
+        # 读取用户配置
+        config = load_user_config(project_root)
         transport = make_inprocess_transport(engine)
         # 将 anime 风格化后处理接入 transport（默认使用本地回退风格器）
-        stylizer = LLMAnimePostProcessor(llm=None)
+        system_prompt = config.anime_style.system_prompt or None
+        # 根据 provider 尝试启用 Z.ai 提供器；若配置不完整则回退到本地风格化
+        llm_callable = None
+        try:
+            if (config.llm.provider or "").lower() in {"zai", "zhipu", "zhipuai"} and (config.llm.api_key or ""):
+                llm_callable = build_zai_llm(config.llm)
+        except Exception as e:
+            logger.warning(f"Z.ai 提供器初始化失败，使用本地回退风格器：{e}")
+
+        if system_prompt is not None:
+            stylizer = LLMAnimePostProcessor(llm=llm_callable, model=config.llm.model, system_prompt=system_prompt)
+        else:
+            stylizer = LLMAnimePostProcessor(llm=llm_callable, model=config.llm.model)
         transport = make_anime_transport(transport, stylizer)
         router = IoRouter(transport=transport)
 
