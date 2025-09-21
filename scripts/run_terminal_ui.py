@@ -31,6 +31,8 @@ if project_root not in sys.path:
 try:
     from superchan.ui.terminal.terminal_ui import run_terminal_ui
     from superchan.ui.io_router import IoRouter
+    from superchan.core import CoreEngine, make_inprocess_transport
+    from superchan.core.executors import build_default_programmatic_executor
     logger.info("模块导入成功")
 except ImportError as e:
     logger.error(f"导入失败: {e}")
@@ -41,8 +43,10 @@ except ImportError as e:
 def main() -> None:
     """主函数，启动终端 UI"""
     try:
-        logger.info("正在初始化 IoRouter...")
-        router = IoRouter()
+        logger.info("正在初始化 Core 引擎与 IoRouter...")
+        engine = CoreEngine(build_default_programmatic_executor())
+        transport = make_inprocess_transport(engine)
+        router = IoRouter(transport=transport)
 
         logger.info("Terminal UI 初始化完成，正在启动...")
         # 使用同步运行方式，因为 run_terminal_ui 内部已处理异步

@@ -8,8 +8,8 @@
 - 提供注册/注销回调的线程安全操作以及对并发回调的收集与异常记录。
 
 设计要点与 API：
-- Transport：类型为 Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
-    - transport 接受序列化后的请求 dict（例如由 `InputPayload.to_dict()` 生成），返回一个 dict 形式的响应。
+- Transport：类型为 Callable[[InputPayload], Coroutine[Any, Any, OutputPayload]]
+    - transport 直接接收 InputPayload 并返回 OutputPayload（避免不必要的序列化/反序列化）。
 - 回调：支持两类回调签名
     - 异步回调：async def cb(OutputPayload) -> None
     - 同步回调：def cb(OutputPayload) -> None
@@ -32,7 +32,7 @@
 >>> await router.send_request(InputPayload(type="nl", input="hello"))
 
 注意事项：
-- IoRouter 假定传入的 request 已为 `InputPayload` 实例；send_request 使用 request.to_dict() 进行序列化。
+- IoRouter 假定传入的 request 已为 `InputPayload` 实例；transport 直接按对象传输。
 - 默认 transport 为一个轻量模拟实现（见 `_default_transport`），在生产环境应替换为真实的异步 transport。
 
 导出符号：IoRouter, TransportCallable, AsyncCallback, SyncCallback, CallbackType
@@ -55,8 +55,8 @@ logger = logging.getLogger(__name__)
 
  
 # 明确 transport 与回调类型
-# Transport 为 async callable 返回 coroutine that yields dict[str, Any]
-TransportCallable = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
+# Transport 现在直接接受 InputPayload 并返回 OutputPayload
+TransportCallable = Callable[[InputPayload], Coroutine[Any, Any, OutputPayload]]
 AsyncCallback = Callable[[OutputPayload], Coroutine[Any, Any, None]]
 SyncCallback = Callable[[OutputPayload], None]
 CallbackType = AsyncCallback | SyncCallback
@@ -74,9 +74,13 @@ class IoRouter:
         self._lock: asyncio.Lock = asyncio.Lock()
 
     @staticmethod
-    async def _default_transport(request: dict[str, Any]) -> dict[str, Any]:
+    async def _default_transport(request: InputPayload) -> OutputPayload:
         await asyncio.sleep(0.05)
-        return {"text": "模拟响应: " + str(request), "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        return OutputPayload(
+            output="模拟响应: " + str(request.to_dict()),
+            type="text",
+            timestamp=datetime.datetime.now(datetime.timezone.utc),
+        )
 
     async def send_request(self, request: InputPayload) -> None:
         """
@@ -88,12 +92,7 @@ class IoRouter:
         运行时会在传入非 InputPayload 时记录错误并抛出 TypeError。
         """
 
-        req: dict[str, Any] = request.to_dict()
-        response_any: Any = await self._transport(req)
-        # 明确将 transport 返回值构造为 dict 以供 OutputPayload.from_dict 使用，避免盲目 cast
-        response_dict: dict[str, Any] = dict(response_any)
-        payload: OutputPayload = OutputPayload.from_dict(response_dict)
-
+        payload: OutputPayload = await self._transport(request)
         await self._dispatch_output(payload)
 
     async def _dispatch_output(self, output: OutputPayload) -> None:
@@ -131,7 +130,7 @@ class IoRouter:
             if getattr(res, "__traceback__", None) is not None:
                 logger.exception("回调执行过程中发生异常：%s", res)
 
-    async def _transport_send(self, request: dict[str, Any]) -> dict[str, Any]:
+    async def _transport_send(self, request: InputPayload) -> OutputPayload:
         return await self._transport(request)
 
     async def _get_registered_count(self) -> int:

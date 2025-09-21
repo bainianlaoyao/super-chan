@@ -30,6 +30,13 @@ from textual.events import Key
 
 from superchan.ui.base_ui import BaseUI
 from superchan.ui.io_router import IoRouter, OutputPayload, InputPayload
+from superchan.ui.terminal.command_provider import (
+    ProcedureCommands,
+    ProcedureFormScreen,
+    ProcedureSpec,
+)
+
+from superchan.ui.terminal.output_dispatcher import dispatch_output
 
 logger = logging.getLogger(__name__)
 
@@ -139,11 +146,13 @@ class DisplayPane(Container):
             self.ascii_panel = SuperChanAsciiPanel(id="ascii-panel")
             yield self.ascii_panel
     
-    def add_message(self, sender: str, text: str, timestamp: datetime.datetime | None = None) -> None:
+    def add_message(self, sender: str, output: str | dict[str,Any], timestamp: datetime.datetime | None = None) -> None:
         """添加消息到日志"""
         if self.message_log:
-            self.message_log.add_message(sender, text, timestamp)
-    
+            if isinstance(output, dict):
+                output = str(output)
+            self.message_log.add_message(sender, output, timestamp)
+
     def set_ascii_state(self, state: str) -> None:
         """设置 ASCII art 状态"""
         if self.ascii_panel:
@@ -277,6 +286,9 @@ class TerminalUI(App[None]):
         Binding("ctrl+d", "quit", "退出"),
         Binding("ctrl+c", "quit", "退出"),
     ]
+
+    # 命令面板 Provider：加入 ProcedureCommands
+    COMMANDS = App.COMMANDS | {ProcedureCommands}
     
     def __init__(self, router: IoRouter, name: str | None = None, **kwargs: Any) -> None:
         # 初始化 Textual App
@@ -358,13 +370,10 @@ class TerminalUI(App[None]):
                 if self.display_pane:
                     self.display_pane.set_ascii_state("speaking")
                 
-                # 显示消息
+                # 显示消息：遵循约定
                 if self.display_pane:
-                    self.display_pane.add_message(
-                        "system",
-                        output.text,
-                        output.timestamp
-                    )
+                    text_to_show = dispatch_output(output)
+                    self.display_pane.add_message("system", text_to_show, output.timestamp)
                 
                 # 延迟一段时间后重置 ASCII art 状态
                 await asyncio.sleep(1.0)
@@ -420,6 +429,45 @@ class TerminalUI(App[None]):
         """接收来自 IoRouter 的输出"""
         # 将输出放入队列，由消息处理任务异步处理
         await self.queue.put(output)
+
+    # -------- Procedure 命令集成 --------
+    def open_procedure_form(self, spec: ProcedureSpec) -> None:
+        """从命令面板打开表格收集参数。"""
+        def _on_result(values: dict[str, Any] | None) -> None:  # type: ignore[name-defined]
+            if values is None:
+                return
+            # 发送 precedure 请求
+            asyncio.create_task(self._send_procedure_request(spec, values))
+
+        self.push_screen(ProcedureFormScreen(spec), _on_result)
+
+    async def _send_procedure_request(self, spec: ProcedureSpec, values: dict[str, Any]) -> None:
+        try:
+            # 可选：用户视角显示一次，便于历史记录
+            if self.display_pane:
+                self.display_pane.add_message("user", f"/{spec.name} {values}")
+
+            if self.display_pane:
+                self.display_pane.set_ascii_state("thinking")
+
+            meta = dict(spec.metadata)
+            # 约定：附带 procedure 名称，便于后端路由
+            if "procedure" not in meta:
+                meta["procedure"] = spec.name
+
+            payload = InputPayload(
+                type="precedure",
+                input=values,
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+                metadata=meta,
+            )
+            await self.send_request(payload)
+        except Exception as e:
+            logger.exception("发送 procedure 失败: %s", e)
+            if self.display_pane:
+                self.display_pane.add_message("system", f"发送失败: {e}")
+            if self.display_pane:
+                self.display_pane.set_ascii_state("normal")
     
     # Textual App 动作实现
     async def action_quit(self) -> None:

@@ -103,6 +103,37 @@ uv run python -c "import asyncio; from superchan.ui.terminal.terminal_ui import 
 **退出功能完善**：
 确保 Ctrl+D 和 Ctrl+C 能正确退出程序，包括优雅的资源清理和异常情况下的强制退出。
 
+## 文档
+
+项目文档已按模块重新组织，位于 [`docs/modules/`](docs/modules/) 目录，结构与源码目录保持一致：
+
+### 核心架构 (core/)
+- [架构设计](docs/modules/core/architecture.md) - 项目目标、整体架构、核心理念、关键决策
+
+### UI系统 (ui/)
+- [BaseUI抽象基类](docs/modules/ui/base_ui.md) - UI基础接口和生命周期管理
+- [数据载荷设计](docs/modules/ui/io_payload.md) - InputPayload和OutputPayload规范
+- [IoRouter消息路由](docs/modules/ui/io_router.md) - 消息路由和回调管理机制
+
+#### 终端UI实现 (ui/terminal/)
+- [TerminalUI实现](docs/modules/ui/terminal/terminal_ui.md) - 终端UI架构和组件设计
+- [CommandProvider](docs/modules/ui/terminal/command_provider.md) - 命令提供者和表单系统
+
+### 命令系统 (command/)
+- [命令系统设计](docs/modules/command/commands.md) - 命令元数据、表单Schema、自动补全
+
+### 扩展性设计 (extensibility/)
+- [扩展性设计](docs/modules/extensibility/design.md) - 插件系统和工具箱设计
+
+### 风格设计 (style/)
+- [二次元风格](docs/modules/style/anime.md) - 二次元风格设计
+
+### 原始文档文件
+- [设计文档](docs/design.md)
+- [终端UI说明](docs/terminal_ui.md)
+- [命令Schema](docs/command_schema.md)
+- [UI内部约定](docs/ui_internals.md)
+
 ## 开发
 
 ### 项目结构
@@ -111,14 +142,41 @@ uv run python -c "import asyncio; from superchan.ui.terminal.terminal_ui import 
 superchan/
 ├── ui/
 │   ├── terminal/
-│   │   └── terminal_ui.py    # 终端 UI 实现
+│   │   ├── terminal_ui.py    # 终端 UI 实现
+│   │   ├── command_provider.py # 命令提供者
+│   │   └── __init__.py
 │   ├── io_router.py          # IO 路由器
 │   ├── io_payload.py         # 数据载荷定义
-│   └── base_ui.py           # 基础 UI 接口
+│   ├── base_ui.py           # 基础 UI 接口
+│   └── __init__.py
 ├── config/
-│   └── panels/              # 表单配置
-└── scripts/
-    └── run_terminal_ui.py   # 启动脚本
+│   └── procedure/           # 表单配置
+├── core/                    # 核心架构
+├── command/                 # 命令系统
+├── extensibility/           # 扩展性设计
+├── style/                   # 风格设计
+├── tools/                   # 工具箱
+├── plugins/                 # 插件系统
+├── database/                # 数据库相关
+├── executors/               # 执行器
+├── mcp/                     # MCP相关
+├── mcp_servers/             # MCP服务器
+├── anime/                   # 二次元相关
+├── docker/                  # Docker相关
+└── utils/                   # 工具函数
+
+docs/
+├── modules/                 # 模块化文档（与源码结构一致）
+│   ├── core/
+│   ├── ui/
+│   │   └── terminal/
+│   ├── command/
+│   ├── extensibility/
+│   └── style/
+└── [其他文档文件]
+
+scripts/
+└── run_terminal_ui.py   # 启动脚本
 ```
 
 ### 代码规范

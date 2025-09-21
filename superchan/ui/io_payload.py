@@ -31,12 +31,12 @@
 
 from __future__ import annotations
 
+from typing import cast, Literal, Any
 import dataclasses
 import datetime
 
 from dataclasses import dataclass
 
-from typing import Literal, Any
 import logging
 
 # 模块级 logger，用于记录 from_dict 解析时的异常信息。
@@ -51,7 +51,9 @@ class OutputPayload:
     - timestamp: 可选，datetime 或 None（使用 timezone-aware UTC）
     - metadata: 可选，额外信息字典
     """
-    text: str
+    output: str | dict[str, Any]
+    type : Literal['text', 'dict']
+    
     timestamp: datetime.datetime | None = None
     metadata: dict[str, Any] = dataclasses.field(default_factory=dict)  # type: ignore[assignment]
 
@@ -61,7 +63,8 @@ class OutputPayload:
         datetime 使用 ISO 格式字符串表示；若 timestamp 为 None 则返回 None。
         """
         return {
-            "text": self.text,
+            "output": self.output,
+            "type": self.type,
             "timestamp": self.timestamp.isoformat() if self.timestamp is not None else None,
             "metadata": dict(self.metadata),
         }
@@ -70,13 +73,22 @@ class OutputPayload:
     def from_dict(data: dict[str, Any]) -> "OutputPayload":
         """
         从字典恢复 OutputPayload。接受来自 transport 的响应 dict。
-        - 当 data 中缺少 text 时，会以 str(data) 作为 text 的后备表示。
-        - timestamp 尝试用 ISO 字符串解析；解析失败时记录异常并置为 None（不再做 isinstance 检查）。
+        兼容性规则：
+        - 优先读取 data["output" ]，若缺失则回退到 data["text"]；仍缺失则使用 str(data)。
+        - 若缺失 data["type" ]，当输出为 dict 时推断为 "dict"，否则为 "text"。
+        - timestamp 尝试用 ISO 字符串解析；解析失败时记录异常并置为 None。
         """
-        text = data.get("text")
-        if text is None:
-            # 将任意响应以字符串形式封装为 text，保证字段满足最小要求
-            text = str(data)
+        out_val = data.get("output")
+        if out_val is None:
+            out_val = data.get("text")
+        if out_val is None:
+            out_val = str(data)
+        detected_type: Literal['text', 'dict']
+        if "type" in data:
+            t_raw = str(data.get("type"))
+            detected_type = 'dict' if t_raw == 'dict' or isinstance(out_val, dict) else 'text'
+        else:
+            detected_type = "dict" if isinstance(out_val, dict) else "text"
         raw_ts = data.get("timestamp")
         timestamp: datetime.datetime | None
         if raw_ts is None:
@@ -90,7 +102,12 @@ class OutputPayload:
                 logger.exception("无法解析 timestamp，置为 None：%s", exc)
                 timestamp = None
         metadata = dict(data.get("metadata") or {})
-        return OutputPayload(text=text, timestamp=timestamp, metadata=metadata)
+        return OutputPayload(
+            output=cast(str | dict[str, Any], out_val),
+            type=detected_type,
+            timestamp=timestamp,
+            metadata=metadata,
+        )
   
 @dataclass
 class InputPayload:

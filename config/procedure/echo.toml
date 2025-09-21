@@ -1,0 +1,26 @@
+# echo 命令（最小示例）
+
+[command]
+name = "echo"
+description = "Echo back the provided text"
+
+[input]
+# "nl" | "precedure"
+# 该示例使用自然语言输入（即简单文本）。
+text = "str"
+time_delay = "float"
+
+
+
+[metadata]
+# 这些键值会被原样放入 InputPayload.metadata
+source = "example"
+feature = "echo"
+
+[output]
+# echo 示例返回
+type = "dict"
+text = 'str'
+time_used = 'float'
+
+
