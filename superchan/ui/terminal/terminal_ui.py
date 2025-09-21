@@ -200,7 +200,7 @@ class MessageLog(RichLog):
             self.write(aligned_text)
         else:
             # 系统消息左对齐，默认颜色
-            self.write(f"[{time_str}] 系统: {text}")
+            self.write(f"[{time_str}] {sender}: {text}")
         
         # 自动滚动到底部
         if self.auto_scroll:
@@ -373,7 +373,7 @@ class TerminalUI(App[None]):
                 # 显示消息：遵循约定
                 if self.display_pane:
                     text_to_show = dispatch_output(output)
-                    self.display_pane.add_message("system", text_to_show, output.timestamp)
+                    self.display_pane.add_message(output.metadata.get("source", "系统"), text_to_show, output.timestamp)
                 
                 # 延迟一段时间后重置 ASCII art 状态
                 await asyncio.sleep(1.0)

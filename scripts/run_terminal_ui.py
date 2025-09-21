@@ -32,6 +32,7 @@ try:
     from superchan.ui.terminal.terminal_ui import run_terminal_ui
     from superchan.ui.io_router import IoRouter
     from superchan.core import CoreEngine, make_inprocess_transport
+    from superchan.anime import LLMAnimePostProcessor, make_anime_transport
     from superchan.core.executors import build_default_programmatic_executor
     logger.info("模块导入成功")
 except ImportError as e:
@@ -46,6 +47,9 @@ def main() -> None:
         logger.info("正在初始化 Core 引擎与 IoRouter...")
         engine = CoreEngine(build_default_programmatic_executor())
         transport = make_inprocess_transport(engine)
+        # 将 anime 风格化后处理接入 transport（默认使用本地回退风格器）
+        stylizer = LLMAnimePostProcessor(llm=None)
+        transport = make_anime_transport(transport, stylizer)
         router = IoRouter(transport=transport)
 
         logger.info("Terminal UI 初始化完成，正在启动...")
