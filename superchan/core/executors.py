@@ -6,11 +6,11 @@ ProgrammaticExecutor: 基于注册表的程序化执行器，运行结构化 pro
 """
 
 import asyncio
-import time
 from typing import Any
 from collections.abc import Awaitable, Callable
 
 from superchan.ui.io_payload import OutputPayload
+from superchan.utils.procedure_registry import get_registered_procedures
 
 
 ProcedureFunc = Callable[[dict[str, Any], dict[str, Any] | None], Awaitable[OutputPayload]]
@@ -53,36 +53,9 @@ class ProgrammaticExecutor:
         return result
 
 
-# ---------------------------
-# 内置最小示例：echo
-# ---------------------------
-
-async def _proc_echo(params: dict[str, Any], metadata: dict[str, Any] | None) -> OutputPayload:
-    start = time.perf_counter()
-    # 支持 input_schema 中的 text 与 time_delay，可选
-    text = str(params.get("text", ""))
-    delay = 0.0
-    try:
-        delay = float(params.get("time_delay", 0.0) or 0.0)
-    except Exception:
-        delay = 0.0
-    if delay > 0:
-        await asyncio.sleep(min(delay, 5.0))  # 防御性上限
-    # 返回 OutputPayload（type=dict），UI 会优先显示 output['text']
-    used = time.perf_counter() - start
-    return OutputPayload(
-        output={
-            "text": text,
-            "echo": True,
-            "time_used": used,
-        },
-        
-        type="dict",
-        metadata=metadata or {},
-    )
-
-
 def build_default_programmatic_executor() -> ProgrammaticExecutor:
     exe = ProgrammaticExecutor()
-    exe.register("echo", _proc_echo)
+    # 从全局注册表批量注册
+    for name, func in get_registered_procedures().items():
+        exe.register(name, func)  # type: ignore[arg-type]
     return exe

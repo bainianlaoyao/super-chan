@@ -1,0 +1,45 @@
+# summerise_past_email 命令（汇总与导读生成）
+
+[command]
+name = "summerise_past_email"
+description = "抓取过去一段时间内的邮件，逐封生成原子总结并按优先级生成 Markdown 汇总文档，文首包含 LLM 导读"
+
+[input]
+# 选择过去的范围（两者可组合，至少一个>0）。
+# 例如 past_days=2, past_hours=6 表示过去 2 天 6 小时。
+past_days = "int"         # >= 0，默认 0
+past_hours = "int"        # >= 0，默认 24（若两者皆为 0，则内部默认 24 小时）
+
+# 抓取器与文件夹
+fetcher = "str"           # 默认 "outlook"，目前实现 OutlookFetcher
+folder = "str"            # 例如 "Inbox"、"Sent Items"，默认 "Inbox"
+
+# 过滤项
+unread_only = "bool"      # 仅抓取未读，默认 false
+limit = "int"             # 最多抓取多少封，默认 100（0 或负数视为不限制）
+
+
+[metadata]
+# 这些键值会被原样放入 InputPayload.metadata
+source = "super_program.email"
+feature = "summerise_past_email"
+# 依赖与前置条件：Windows + Microsoft Outlook + pywin32（win32com）
+platform = "windows_outlook_pywin32"
+
+[output]
+# 输出为一个 Markdown 文本与统计信息
+# 约定：
+# - text: 汇总文档（含每封邮件的原子总结分节 + 文首导读）
+# - total_emails: 抓取的邮件总数
+# - summarised: 实际完成总结的邮件数
+# - time_used: 处理耗时（秒）
+# - warnings: 可能的告警信息（如超限、解析失败计数）
+# 其它扩展字段可按需添加
+
+# 申明输出结构（示例类型）
+type = "dict"
+text = "str"
+total_emails = "int"
+summarised = "int"
+time_used = "float"
+warnings = "list[str]"
