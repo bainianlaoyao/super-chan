@@ -41,7 +41,7 @@ graph TB
         B[WebUI]
         C[DesktopUI]
         D[MobileUI]
-        
+      
         A --> A1[DisplayPane]
         A --> A2[InputPane]
         A --> A3[CommandProvider]
@@ -52,12 +52,12 @@ graph TB
         E[BaseUI抽象基类]
         F[IoRouter消息路由]
         G[IoPayload数据结构]
-        
+      
         F --> F1[InputPayload处理]
         F --> F2[OutputPayload分发]
         F --> F3[回调管理]
         F --> F4[Transport接口]
-        
+      
         G --> G1[自然语言载荷nl]
         G --> G2[程序化载荷procedure]
     end
@@ -94,7 +94,7 @@ graph TB
     B --> E
     C --> E
     D --> E
-    
+  
     E --> F
     F --> H
     H --> I
@@ -177,7 +177,7 @@ sequenceDiagram
     participant MCP as MCP基础设施
 
     Note over U,UI: 用户通过各种UI界面进行交互
-    
+  
     alt 自然语言输入
         U->>UI: 输入自然语言
         UI->>UI: 构建InputPayload(type="nl")
@@ -232,7 +232,7 @@ graph TB
             B[TerminalUI]
             C[WebUI]
             D[DesktopUI]
-            
+          
             B --> B1[Textual App集成]
             B --> B2[DisplayPane消息显示]
             B --> B3[InputPane多行输入]
@@ -251,11 +251,11 @@ graph TB
         subgraph "数据载荷设计"
             F[InputPayload]
             G[OutputPayload]
-            
+          
             F --> F1[type: nl/procedure]
             F --> F2[input: str/dict]
             F --> F3[metadata/timestamp]
-            
+          
             G --> G1[output: str/dict]
             G --> G2[type: text/dict]
             G --> G3[metadata/timestamp]
@@ -265,18 +265,20 @@ graph TB
     A --> B
     A --> C
     A --> D
-    
+  
     B --> E
     C --> E
     D --> E
-    
+  
     E --> F
     E --> G
 
     style A fill:#ffeb3b,stroke:#333,stroke-width:2px
     style E fill:#4caf50,stroke:#333,stroke-width:2px
 ```
+
     style F fill:#ffcccb,stroke:#333,stroke-width:2px
+
 ```
 
 ---
@@ -286,6 +288,7 @@ graph TB
 ### 顶层目录结构
 
 ```
+
 super-chan/
 ├── config/                    # 配置管理
 │   └── procedure/            # 程序化命令配置
@@ -313,6 +316,7 @@ super-chan/
 ├── scripts/                  # 脚本
 │   └── run_terminal_ui.py   # 终端UI启动脚本
 └── examples/                 # 示例
+
 ```
 
 ### 核心模块组织
@@ -364,7 +368,7 @@ graph TB
             A --> A4[CommandProvider 命令提供]
             A --> A5[ProcedureFormScreen 表单对话框]
         end
-        
+      
         subgraph "抽象层 - BaseUI基类"
             B[BaseUI抽象基类]
             B --> B1[send_request 抽象方法]
@@ -372,7 +376,7 @@ graph TB
             B --> B3[回调注册管理]
             B --> B4[生命周期控制]
         end
-        
+      
         subgraph "通信层 - IoRouter系统"
             C[IoRouter 消息路由]
             C --> C1[Transport 传输接口]
@@ -381,10 +385,10 @@ graph TB
             C --> C4[错误处理与重试]
         end
     end
-    
+  
     A --> B
     B --> C
-    
+  
     style A fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     style B fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     style C fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
@@ -395,6 +399,7 @@ graph TB
 当前已实现的TerminalUI基于Textual框架，包含以下核心组件：
 
 #### 组件架构
+
 ```mermaid
 graph LR
     subgraph "TerminalUI组件"
@@ -402,24 +407,25 @@ graph LR
         A --> C[DisplayPane显示区]
         A --> D[InputPane输入区]
         A --> E[Footer底部]
-        
+      
         C --> C1[MessageLog消息日志]
         C --> C2[SuperChanAsciiPanel动画]
-        
+      
         D --> D1[TextArea多行输入]
         D --> D2[键盘事件处理]
-        
+      
         A --> F[CommandProvider命令]
         F --> F1[ProcedureCommands程序化命令]
         F --> F2[ProcedureFormScreen表单界面]
     end
-    
+  
     style A fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
     style C fill:#4fc3f7,stroke:#0277bd,stroke-width:2px
     style D fill:#81c784,stroke:#2e7d32,stroke-width:2px
 ```
 
 #### 交互流程
+
 ```mermaid
 sequenceDiagram
     participant U as 用户
@@ -455,6 +461,7 @@ sequenceDiagram
 UI层通过标准化的载荷结构与后端通信：
 
 #### InputPayload输入载荷
+
 ```python
 @dataclass
 class InputPayload:
@@ -465,6 +472,7 @@ class InputPayload:
 ```
 
 #### OutputPayload输出载荷
+
 ```python
 @dataclass
 class OutputPayload:
@@ -665,21 +673,21 @@ graph TB
 
 ### 第一阶段：核心架构 ✅
 
-- [x] 完成UI层分层架构设计
-- [x] 实现BaseUI抽象基类和IoRouter
-- [x] 实现InputPayload/OutputPayload载荷系统
-- [x] 实现TerminalUI基础框架
+- [X] 完成UI层分层架构设计
+- [X] 实现BaseUI抽象基类和IoRouter
+- [X] 实现InputPayload/OutputPayload载荷系统
+- [X] 实现TerminalUI基础框架
 
 ### 第二阶段：UI功能实现 ✅
 
-- [x] TerminalUI主界面实现
-- [x] 消息显示和输入组件
-- [x] ASCII动画角色系统
-- [x] 程序化命令提供者和表单界面
+- [X] TerminalUI主界面实现
+- [X] 消息显示和输入组件
+- [X] ASCII动画角色系统
+- [X] 程序化命令提供者和表单界面
 
 ### 第三阶段：功能扩展
 
-- [ ] 邮件处理功能
+- [X] 邮件处理功能
 - [ ] 桌面操作功能
 - [ ] 任务调度功能
 - [ ] WebUI和DesktopUI实现
@@ -709,27 +717,28 @@ graph TB
 #### ✅ 已完成的组件
 
 1. **BaseUI抽象基类** (`superchan/ui/base_ui.py`)
+
    - 定义了UI与IoRouter的标准接口
    - 提供回调注册和生命周期管理
    - 支持异步消息处理
-
 2. **IoRouter消息路由系统** (`superchan/ui/io_router.py`)
+
    - 实现Transport接口和回调分发
    - 支持同步和异步回调
    - 提供错误处理和异常日志
-
 3. **载荷数据结构** (`superchan/ui/io_payload.py`)
+
    - InputPayload支持nl和procedure两种类型
    - OutputPayload支持text和dict两种输出
    - 完整的序列化和向后兼容支持
-
 4. **TerminalUI完整实现** (`superchan/ui/terminal/terminal_ui.py`)
+
    - 基于Textual框架的现代终端界面
    - DisplayPane消息显示和InputPane多行输入
    - SuperChanAsciiPanel动画角色系统
    - 完整的键盘绑定和事件处理
-
 5. **程序化命令系统** (`superchan/ui/terminal/command_provider.py`)
+
    - ProcedureCommands集成到Textual命令面板
    - ProcedureFormScreen表单对话框
    - 支持从TOML配置文件动态加载命令

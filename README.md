@@ -1,194 +1,169 @@
-# SuperChan
+# Super Chan
 
-SuperChan 是一个基于终端的用户界面应用程序，提供丰富的交互体验。
+[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+Super Chan 是一个基于Python的异步AI助手平台，采用分层架构设计，提供现代化的终端用户界面体验。支持邮件处理、动漫风格化等功能，并具备强大的插件扩展能力。
+
+## 目录
+
+- [功能特性](#功能特性)
+- [技术栈](#技术栈)
+- [安装](#安装)
+- [快速开始](#快速开始)
+- [用法](#用法)
+- [架构](#架构)
+- [当前进度](#当前进度)
+- [贡献](#贡献)
+- [许可证](#许可证)
 
 ## 功能特性
 
-- **终端用户界面**: 基于 Textual 框架的现代化终端 UI
-- **消息显示**: 支持历史消息显示和滚动
-- **多行输入**: 支持多行文本输入和命令补全
-- **命令系统**: 以 `/` 开头的命令支持自动补全
-- **表单交互**: 支持动态表单生成和数据收集
-- **键盘导航**: 完整的键盘快捷键支持
+- **终端用户界面**: 基于 Textual 框架的现代化终端 UI，支持历史消息显示和滚动
+- **多行输入与命令补全**: 支持多行文本输入、以 `/` 开头的命令自动补全
+- **表单交互**: 动态表单生成和数据收集，支持键盘导航和快捷键
+- **邮件处理**: 集成 Outlook 获取器和 LLM 总结器，支持邮件获取和内容总结
+- **动漫风格化**: LLM 驱动的文本转二次元风格转换
+- **推送通知**: 支持 ServerChan 等推送服务
+- **插件系统**: 可扩展的插件架构，支持自定义功能模块
+- **异步架构**: 基于 asyncio 的高性能异步处理
+
+## 技术栈
+
+- **Python 3.13+**: 核心编程语言
+- **uv**: 快速的 Python 包安装器和虚拟环境管理器
+- **Textual**: 现代终端用户界面框架
+- **Pydantic**: 数据验证和设置管理
+- **其他依赖**:
+  - Outlook 库 (邮件处理)
+  - ServerChan SDK (推送通知)
+  - ZAI SDK (AI服务集成)
 
 ## 安装
 
-确保你有 Python 3.13+ 和 uv 包管理器：
+### 系统要求
+
+- Python 3.13 或更高版本
+- uv 包管理器
+
+### 安装 uv
 
 ```bash
+# 使用官方安装脚本（适用于多种操作系统）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 或者使用 pip 安装
+pip install uv
+```
+
+### 安装项目
+
+```bash
+# 克隆项目
+git clone https://github.com/your-username/superchan.git
+cd superchan
+
 # 安装依赖
 uv sync
 ```
 
-## 运行
+## 快速开始
 
-### 方法 1: 使用启动脚本
+1. **配置环境**: 编辑 `config/user.toml` 文件配置你的设置
+2. **启动应用**: 运行终端界面
 
 ```bash
 uv run python scripts/run_terminal_ui.py
 ```
 
-### 方法 2: 直接运行模块
+3. **开始使用**: 在终端中输入命令或消息开始交互
 
-```bash
-uv run python superchan/ui/terminal/terminal_ui.py
-```
-
-### 方法 3: 作为 Python 模块
-
-```bash
-uv run python -c "import asyncio; from superchan.ui.terminal.terminal_ui import main; asyncio.run(main())"
-```
-
-## 使用说明
+## 用法
 
 ### 基本操作
 
-- **输入消息**: 在底部输入框中输入文本，按 **Ctrl+Enter** 发送
-- **多行输入**: 使用 **Enter** 在输入框内换行
-- **退出程序**: 按 Ctrl+D 或 Ctrl+C 退出
+- **发送消息**: 在输入框中输入文本，按 `Ctrl+Enter` 发送
+- **多行输入**: 按 `Enter` 在输入框内换行
+- **退出程序**: 按 `Ctrl+D` 或 `Ctrl+C`
+- **命令面板**: 按 `ctrl+p`唤起命令面板, 调用命令
 
-### 命令系统
+### 高级功能
 
-- **命令前缀**: 以 `/` 开头输入命令
-- **自动补全**: 输入 `/` 后会显示可用的命令列表
-- **键盘导航**: 使用上下箭头键选择命令，Enter 确认
+- **邮件处理**: 使用内置程序处理邮件总结
+- **动漫风格化**: 将文本转换为二次元风格
+- **推送通知**: 配置推送服务接收通知
 
-### 可用命令
+## 架构
 
-- `/help` - 显示帮助信息
-- `/example` - 示例命令
-- `/quit` - 退出程序
+项目采用分层架构设计，主要分为四个层次：
 
-## 架构说明
+### 核心层 (Core)
 
-### 核心组件
+- **引擎 (Engine)**: 业务逻辑调度和执行
+- **传输 (Transport)**: 数据传输机制
+- **执行器 (Executors)**: 任务执行管理
 
-- **TerminalUI**: 主应用程序类，基于 Textual App
-- **IoRouter**: IO 路由器，负责请求发送和响应分发
-- **BaseUI**: 基础 UI 接口，提供统一的回调机制
-- **DisplayPane**: 消息显示面板
-- **InputPane**: 输入面板，支持多行输入和命令补全
+### UI层 (UI)
 
-### 数据流
+- **终端UI**: Textual 框架实现的终端界面
+- **推送UI**: ServerChan 等推送服务集成
+- **IO路由器**: 消息路由和回调管理
+- **数据载荷**: InputPayload 和 OutputPayload 规范
 
-1. 用户在 InputPane 中输入文本
-2. InputPane 将输入构造为 InputPayload
-3. 通过 IoRouter 发送到后端处理
-4. 后端返回 OutputPayload
-5. IoRouter 分发到所有注册的回调
-6. TerminalUI 接收并在 DisplayPane 中显示
+### 超级程序层 (Super Program)
 
-## 实现变更记录
+- **邮件模块**: Outlook 邮件获取、LLM 内容总结
+- **动漫模块**: 文本风格化转换
 
-### 键盘绑定调整（2025-09-20）
+### 工具层 (Utils)
 
-**变更说明**：
-- **Ctrl+Enter**: 发送消息/提交请求
-- **Enter**: 在输入框内换行（支持多行输入）
-- **Ctrl+D / Ctrl+C**: 退出应用程序
+- **配置管理**: TOML 配置文件处理
+- **LLM提供者**: AI 服务接口封装
+- **过程注册**: 动态过程注册机制
 
-**变更原因**：
-原始设计中 Enter 用于发送消息，但实际使用中发现这种设计不够直观。经过用户反馈，将键盘绑定调整为更常见的交互模式，提高了多行输入的便利性。
+## 当前进度
 
-### 兼容性改进（2025-09-20）
+### ✅ 已完成功能
 
-**模块导入修复**：
-修复了在不同 Python 环境中运行时的模块导入问题，现在支持：
-- 直接运行 `python scripts/run_terminal_ui.py`
-- 通过 uv 运行 `uv run python scripts/run_terminal_ui.py`
-- VS Code 调试器运行
-- 其他 Python 环境
+- **核心架构**: 引擎、传输、执行器等核心组件稳定运行
+- **邮件模块**: 邮件获取、内容总结功能完整
+- **动漫模块**: LLM 风格化功能实现
+- **UI系统**: 终端UI 和推送UI 支持多种交互模式
 
-**退出功能完善**：
-确保 Ctrl+D 和 Ctrl+C 能正确退出程序，包括优雅的资源清理和异常情况下的强制退出。
+### 🚧 进行中
 
-## 文档
+- **数据库集成**: 完善数据持久化机制
+- **插件系统**: 扩展更多插件类型和配置
 
-项目文档已按模块重新组织，位于 [`docs/modules/`](docs/modules/) 目录，结构与源码目录保持一致：
+### 📋 未来计划
 
-### 核心架构 (core/)
-- [架构设计](docs/modules/core/architecture.md) - 项目目标、整体架构、核心理念、关键决策
+- **插件扩展**: 天气查询、新闻推送、任务管理等插件
+- **UI优化**: 提升交互体验和视觉效果
+- **性能优化**: 算法优化和资源利用率提升
 
-### UI系统 (ui/)
-- [BaseUI抽象基类](docs/modules/ui/base_ui.md) - UI基础接口和生命周期管理
-- [数据载荷设计](docs/modules/ui/io_payload.md) - InputPayload和OutputPayload规范
-- [IoRouter消息路由](docs/modules/ui/io_router.md) - 消息路由和回调管理机制
+## 贡献
 
-#### 终端UI实现 (ui/terminal/)
-- [TerminalUI实现](docs/modules/ui/terminal/terminal_ui.md) - 终端UI架构和组件设计
-- [CommandProvider](docs/modules/ui/terminal/command_provider.md) - 命令提供者和表单系统
+欢迎贡献！请遵循以下步骤：
 
-### 命令系统 (command/)
-- [命令系统设计](docs/modules/command/commands.md) - 命令元数据、表单Schema、自动补全
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建 Pull Request
 
-### 扩展性设计 (extensibility/)
-- [扩展性设计](docs/modules/extensibility/design.md) - 插件系统和工具箱设计
+### 开发设置
 
-### 风格设计 (style/)
-- [二次元风格](docs/modules/style/anime.md) - 二次元风格设计
+```bash
+# 安装开发依赖
+uv sync --dev
 
-### 原始文档文件
-- [设计文档](docs/design.md)
-- [终端UI说明](docs/terminal_ui.md)
-- [命令Schema](docs/command_schema.md)
-- [UI内部约定](docs/ui_internals.md)
+# 运行测试
+uv run pytest
 
-## 开发
-
-### 项目结构
-
+# 代码格式化
+uv run black .
 ```
-superchan/
-├── ui/
-│   ├── terminal/
-│   │   ├── terminal_ui.py    # 终端 UI 实现
-│   │   ├── command_provider.py # 命令提供者
-│   │   └── __init__.py
-│   ├── io_router.py          # IO 路由器
-│   ├── io_payload.py         # 数据载荷定义
-│   ├── base_ui.py           # 基础 UI 接口
-│   └── __init__.py
-├── config/
-│   └── procedure/           # 表单配置
-├── core/                    # 核心架构
-├── command/                 # 命令系统
-├── extensibility/           # 扩展性设计
-├── style/                   # 风格设计
-├── tools/                   # 工具箱
-├── plugins/                 # 插件系统
-├── database/                # 数据库相关
-├── executors/               # 执行器
-├── mcp/                     # MCP相关
-├── mcp_servers/             # MCP服务器
-├── anime/                   # 二次元相关
-├── docker/                  # Docker相关
-└── utils/                   # 工具函数
-
-docs/
-├── modules/                 # 模块化文档（与源码结构一致）
-│   ├── core/
-│   ├── ui/
-│   │   └── terminal/
-│   ├── command/
-│   ├── extensibility/
-│   └── style/
-└── [其他文档文件]
-
-scripts/
-└── run_terminal_ui.py   # 启动脚本
-```
-
-### 代码规范
-
-项目遵循以下规范：
-
-- **Python 版本**: 3.13+
-- **类型提示**: 强制使用类型注解
-- **错误处理**: 禁止静默失败，必须记录异常
-- **日志**: 使用标准 logging 模块
-- **格式化**: 使用 black 代码格式化
 
 ## 许可证
 
-[请添加许可证信息]
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
