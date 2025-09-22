@@ -1,9 +1,9 @@
-# Super Chan
+# 苏帕酱! - Super Chan
 
 [![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Super Chan 是一个基于Python的异步AI助手平台，采用分层架构设计，提供现代化的终端用户界面体验。支持邮件处理、动漫风格化等功能，并具备强大的插件扩展能力。
+苏帕酱 是一个基于Python的AI助手平台，采用分层架构设计，设计为可扩展ui, 可扩展内核, 可扩展everything!
 
 ## 目录
 
