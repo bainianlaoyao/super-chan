@@ -229,7 +229,7 @@ async def _proc_summerise_past_email(params: dict[str, Any], metadata: dict[str,
 		)
 
 	# 4) 逐封原子总结（并行限制）
-	sem = asyncio.Semaphore(4)
+	sem = asyncio.Semaphore(1)
 
 	async def _one(msg: EmailMessage) -> Summary | None:
 		try:
