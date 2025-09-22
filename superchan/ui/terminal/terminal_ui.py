@@ -441,6 +441,13 @@ class TerminalUI(App[None]):
 
         self.push_screen(ProcedureFormScreen(spec), _on_result)
 
+    def execute_procedure_preset(self, spec: ProcedureSpec, params: dict[str, Any]) -> None:
+        """直接使用预设参数执行 procedure。"""
+        # 显示用户消息
+        if self.display_pane:
+            self.display_pane.add_message("user", f"/{spec.name} (预设) {params}")
+        asyncio.create_task(self._send_procedure_request(spec, params))
+
     async def _send_procedure_request(self, spec: ProcedureSpec, values: dict[str, Any]) -> None:
         try:
             # 可选：用户视角显示一次，便于历史记录

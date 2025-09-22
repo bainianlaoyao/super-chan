@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 import tomllib
@@ -47,6 +47,7 @@ class ProcedureSpec:
     metadata: dict[str, Any]
     output_spec: dict[str, str]  # field -> type name (e.g., "str", "dict")
     file_path: Path
+    presets: list[dict[str, Any]]  # list of {"name": str, "params": dict}
 
 
 def _load_procedure_file(path: Path) -> ProcedureSpec | None:
@@ -62,6 +63,14 @@ def _load_procedure_file(path: Path) -> ProcedureSpec | None:
     input_schema = dict(data.get("input") or {})
     metadata = dict(data.get("metadata") or {})
     output_spec = dict(data.get("output") or {})
+    presets_data = data.get("presets", [])
+    presets: list[dict[str, Any]] = []
+    for preset in presets_data:
+        if isinstance(preset, dict):
+            preset_dict = cast(dict[str, Any], preset)
+            preset_name = str(preset_dict.get("name", ""))
+            params: dict[str, Any] = {str(k): v for k, v in preset_dict.items() if k != "name"}
+            presets.append({"name": preset_name, "params": params})
     return ProcedureSpec(
         name=name,
         description=description,
@@ -69,6 +78,7 @@ def _load_procedure_file(path: Path) -> ProcedureSpec | None:
         metadata=metadata,
         output_spec=output_spec,
         file_path=path,
+        presets=presets,
     )
 
 
@@ -276,6 +286,7 @@ class ProcedureCommands(Provider):
     async def search(self, query: str) -> Hits:  # noqa: D401
         matcher = self.matcher(query)
         for spec in self._specs:
+            # 主命令
             cmd_text = f"procedure {spec.name}"
             score = matcher.match(cmd_text)
             if score > 0:
@@ -293,3 +304,21 @@ class ProcedureCommands(Provider):
                     _invoke,
                     help=spec.description or "运行该 procedure",
                 )
+            # 预设命令
+            for preset in spec.presets:
+                preset_cmd = f"procedure {spec.name} {preset['name']}"
+                score = matcher.match(preset_cmd)
+                if score > 0:
+                    label = matcher.highlight(preset_cmd)
+                    def _invoke_preset(spec: ProcedureSpec = spec, preset: dict[str, Any] = preset) -> None:
+                        app = self.app
+                        execute_preset = getattr(app, "execute_procedure_preset", None)
+                        if callable(execute_preset):
+                            execute_preset(spec, preset["params"])
+
+                    yield Hit(
+                        score,
+                        label,
+                        _invoke_preset,
+                        help=f"运行 {spec.name} 使用预设 {preset['name']}",
+                    )

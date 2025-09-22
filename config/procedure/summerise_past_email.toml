@@ -19,6 +19,7 @@ unread_only = "bool"      # 仅抓取未读，默认 false
 limit = "int"             # 最多抓取多少封，默认 100（0 或负数视为不限制）
 
 
+
 [metadata]
 # 这些键值会被原样放入 InputPayload.metadata
 source = "super_program.email"
@@ -43,3 +44,30 @@ total_emails = "int"
 summarised = "int"
 time_used = "float"
 warnings = "list[str]"
+
+[[presets]]
+name = "1 day"
+past_days = 1
+past_hours = 0
+fetcher = "outlook"
+folder = "Inbox"
+unread_only = false
+limit = 100
+
+[[presets]]
+name = "3 days"
+past_days = 3
+past_hours = 0
+fetcher = "outlook"
+folder = "Inbox"
+unread_only = false
+limit = 100
+
+[[presets]]
+name = "unread only"
+past_days = 0
+past_hours = 24
+fetcher = "outlook"
+folder = "Inbox"
+unread_only = true
+limit = 50
