@@ -22,11 +22,11 @@ limit = "int"             # 最多抓取多少封，默认 100（0 或负数视�
 
 [metadata]
 # 这些键值会被原样放入 InputPayload.metadata
-source = "super_program.email"
 feature = "summerise_past_email"
 # 依赖与前置条件：Windows + Microsoft Outlook + pywin32（win32com）
 platform = "windows_outlook_pywin32"
-
+    [metadata.push]
+    channels = ["serverchan"]
 [output]
 # 输出为一个 Markdown 文本与统计信息
 # 约定：

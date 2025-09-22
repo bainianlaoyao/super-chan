@@ -14,8 +14,11 @@ time_delay = "float"
 
 [metadata]
 # 这些键值会被原样放入 InputPayload.metadata
-source = "example"
 feature = "echo"
+
+# 默认推送配置：当调用方未显式选择时，默认推送到这些渠道
+[metadata.push]
+channels = ["serverchan"]
 
 [output]
 # echo 示例返回

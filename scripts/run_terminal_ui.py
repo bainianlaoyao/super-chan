@@ -31,6 +31,7 @@ if project_root not in sys.path:
 try:
     from superchan.ui.terminal.terminal_ui import run_terminal_ui
     from superchan.ui.io_router import IoRouter
+    from superchan.ui.push.serverchan_ui import ServerChanUI
     from superchan.core import CoreEngine, make_inprocess_transport
     from superchan.anime import LLMAnimePostProcessor, make_anime_transport
     from superchan.core.executors import build_default_programmatic_executor
@@ -67,6 +68,15 @@ def main() -> None:
             stylizer = LLMAnimePostProcessor(llm=llm_callable, model=config.llm.model)
         transport = make_anime_transport(transport, stylizer)
         router = IoRouter(transport=transport)
+
+        # 默认注册 ServerChan pusher（如配置了 api_key）
+        sendkey = (config.push.serverchan.api_key or "").strip()
+        if sendkey:
+
+            ServerChanUI(router, sendkey, name="serverchan")
+            logger.info("ServerChan pusher 已注册")
+
+
 
         logger.info("Terminal UI 初始化完成，正在启动...")
         # 使用同步运行方式，因为 run_terminal_ui 内部已处理异步

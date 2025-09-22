@@ -60,10 +60,24 @@ class EmailConfig:
 
 
 @dataclass
+class PushServerChanConfig:
+    """ServerChan 推送配置。"""
+
+    enabled: bool = False
+    api_key: str | None = None
+
+
+@dataclass
+class PushConfig:
+    serverchan: PushServerChanConfig = field(default_factory=PushServerChanConfig)
+
+
+@dataclass
 class UserConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     anime_style: AnimeStyleConfig = field(default_factory=AnimeStyleConfig)
     email: EmailConfig = field(default_factory=EmailConfig)
+    push: PushConfig = field(default_factory=PushConfig)
 
 
 def _expand_env(value: Any) -> Any:
@@ -146,6 +160,20 @@ def _to_email_config(section: dict[str, Any] | None) -> EmailConfig:
     return EmailConfig(fetcher_outlook=fetcher_outlook, summariser=summariser)
 
 
+def _to_push_serverchan_config(section: dict[str, Any] | None) -> PushServerChanConfig:
+    sec = _expand_mapping(section or {})
+    return PushServerChanConfig(
+        enabled=bool(sec.get("enabled", False)),
+        api_key=str(sec.get("api_key") or "") or None,
+    )
+
+
+def _to_push_config(section: dict[str, Any] | None) -> PushConfig:
+    sec: dict[str, Any] = section or {}
+    serverchan = _to_push_serverchan_config(cast(dict[str, Any] | None, sec.get("serverchan")))
+    return PushConfig(serverchan=serverchan)
+
+
 def load_user_config(root_dir: str) -> UserConfig:
     """加载用户配置。
 
@@ -171,4 +199,5 @@ def load_user_config(root_dir: str) -> UserConfig:
     llm = _to_llm_config(data.get("llm"))
     anime_style = _to_anime_style_config(data.get("anime_style"), data.get("anime"))
     email_cfg = _to_email_config(data.get("email"))
-    return UserConfig(llm=llm, anime_style=anime_style, email=email_cfg)
+    push_cfg = _to_push_config(data.get("push"))
+    return UserConfig(llm=llm, anime_style=anime_style, email=email_cfg, push=push_cfg)
