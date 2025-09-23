@@ -111,12 +111,12 @@ async def _proc_summerise_past_email(params: dict[str, Any], metadata: dict[str,
 	fetcher_name = str(params.get("fetcher", "outlook") or "outlook").lower()
 	folder = str(params.get("folder", "Inbox") or "Inbox")
 	unread_only = bool(params.get("unread_only", False))
-	limit_raw = params.get("limit", 100)
+	limit_raw = params.get("limit", 1000000)
 	try:
 		limit = int(limit_raw)
 	except Exception:
 		warnings.append("参数 limit 非法，已回退为 100")
-		limit = 100
+		limit = 1000000
 	if limit <= 0:
 		limit = None  # 不限制
 
